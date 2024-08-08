@@ -3,8 +3,9 @@ import sys
 import os
 import openai
 
-# Set your OpenAI API key here
+# Set your OpenAI API ky and color of the annotations that are to be summarized here
 openai.api_key = 'YOUR OPEN AI KEY'
+colorforsummaries = "#00000"
 
 def extract_annotations(pdf_path):
     doc = fitz.open(pdf_path)
@@ -68,7 +69,7 @@ def format_annotations_to_markdown(annotations, summaries):
     
     for annot in annotations:
         color_info = f" (Color: {annot['color']})" if 'color' in annot else ""
-        if annot['color'] == "#92e1fb":  # Color to be summarized
+        if annot['color'] == colorforsummaries:  # Color to be summarized
             if summary_idx < len(summaries):
                 md_content += f"- **Highlight on Page {annot['page']} (Summarized){color_info}**\n"
                 md_content += f"{summaries[summary_idx]}\n\n"
@@ -98,7 +99,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     annotations = extract_annotations(pdf_path)
-    highlight_texts = [annot['content'] for annot in annotations if annot['color'] == "#92e1fb"]
+    highlight_texts = [annot['content'] for annot in annotations if annot['color'] == colorforsummaries]
     summaries = summarize_annotations(highlight_texts)
     
     markdown_content = format_annotations_to_markdown(annotations, summaries)
