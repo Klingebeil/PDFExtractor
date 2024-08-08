@@ -24,7 +24,7 @@ pip install pymupdf
 ```
 
 ```
-pip install pymupdf
+pip install openai
 ```
 
 ## Usage Python Script
