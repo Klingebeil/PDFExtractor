@@ -63,18 +63,18 @@ python extract_annotations.py example.pdf
 
 This will generate a Markdown file named `example_annotations.md` with the extracted annotations and summaries.
 
-## Using the Shell Script for Apple Automator
+## Using the Shell Script in MacOS Automator
 
-A shell script (`extract_annotations.sh`) is also provided to automate the environment setup and script execution. It can be run in the automator by setting up a new file that 1. takes the provded files and 2. runs the following shell script:
+A shell script (`extract_annotations.sh`) is also provided to automate the environment setup and script execution. It can be run in the MacOS Automator by setting up a new workflow that 1. inputs the provided files and 2. runs the following shell script:
 
 ```
 for f in "$@"
 do
-  /Users/johannesklingebieljohannesklingebiel/Library/Scripts/PDFExtractor/run_python_script.sh "$f"
+  /<YOURPATH>/PDFExtractor/run_python_script.sh "$f"
 done
 ```
 
-Make sure to use the correct shell and to use the input as arguments in the configuration of the Automator shell script.
+Make sure to use the correct shell and to use the input as arguments in the configuration of the shell script.
 
 ### Shell Script Details
 
@@ -90,25 +90,27 @@ The `extract_annotations.sh` script does the following:
 
 ### Usage
 
-1. Edit the `extract_annotations.sh` file to update the paths to your virtual environment (bash/zsh) and Python script paths:
+1. Edit the `extract_annotations.sh` file to update the paths to your virtual environment and Python script paths:
 
 ```sh
 #!/bin/zsh
+# Make sure to edit this line above to your virtual environment
 
+# Path to output directory for debugging (can be deleted if not necessary)
 output_dir=~/PDFExtractor
 
-# Create output directory if it doesn't exist
+# Create output directory if it doesn't exist (can be deleted if not necessary)
 mkdir -p "$output_dir"
 
-# Log the start of the script and current working directory
+# Log the start of the script and current working directory (can be deleted if not necessary)
 echo "Starting script..." > "$output_dir/quick_action_log.txt"
 echo "Current directory: $(pwd)" >> "$output_dir/quick_action_log.txt"
 echo "Script path: $0" >> "$output_dir/quick_action_log.txt"
 echo "Arguments: $@" >> "$output_dir/quick_action_log.txt"
 
 # Define paths
-VENV_PATH="/path/to/your/venv"
-SCRIPT_PATH="/path/to/your/extract_annotations.py"
+VENV_PATH="<YOURPATH>/PDFExtractor/venv"
+SCRIPT_PATH="<YOURPATH>/PDFExtractor/extract_annotations.py"
 
 # Check paths
 echo "VENV Path: $VENV_PATH" >> "$output_dir/quick_action_log.txt"
@@ -120,7 +122,7 @@ source "$VENV_PATH/bin/activate" || { echo "Failed to activate virtual environme
 # Run the Python script with the provided argument
 "$VENV_PATH/bin/python3" "$SCRIPT_PATH" "$1" >> "$output_dir/quick_action_log.txt" 2>&1
 
-# Log the script completion
+# Log the script completion (can be deleted if not necessary)
 echo "Script finished." >> "$output_dir/quick_action_log.txt"
 ```
 
