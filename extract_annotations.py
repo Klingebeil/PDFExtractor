@@ -76,11 +76,11 @@ def format_annotations_to_markdown(annotations, summaries):
                 summary_idx += 1
             else:
                 md_content += f"- **Highlight Color: {annot['color']})**\n"
-                md_content += f"> {annot['content']} (p. annot['page'])\n\n"
+                md_content += f"> {annot['content']} (p. {annot['page']})\n\n"
         else:
             if annot['type'] == "Highlight":
                 md_content += f"- **Highlight Color: {annot['color']}**\n"
-                md_content += f"> {annot['content']} (p. annot['page'])\n\n"
+                md_content += f"> {annot['content']} (p. {annot['page']})\n\n"
             elif annot['type'] == "Note":
                 md_content += f"- **Note on Page {annot['page']}{color_info}**\n"
                 md_content += f"- {annot['content']}\n\n"
