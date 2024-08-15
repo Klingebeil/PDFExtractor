@@ -71,16 +71,16 @@ def format_annotations_to_markdown(annotations, summaries):
         color_info = f" (Color: {annot['color']})" if 'color' in annot else ""
         if annot['color'] == colorforsummaries:  # Color to be summarized
             if summary_idx < len(summaries):
-                md_content += f"- **Highlight on Page {annot['page']} (Summarized){color_info}**\n"
+                md_content += f"- **Highlight on Page {annot['page']} (Summarized) \{color_info}**\n"
                 md_content += f"{summaries[summary_idx]}\n\n"
                 summary_idx += 1
             else:
-                md_content += f"- **Highlight on Page {annot['page']} (Color: {annot['color']})**\n"
-                md_content += f"> {annot['content']}\n\n"
+                md_content += f"- **Highlight Color: {annot['color']})**\n"
+                md_content += f"> {annot['content']} (p. annot['page'])\n\n"
         else:
             if annot['type'] == "Highlight":
-                md_content += f"- **Highlight on Page {annot['page']}{color_info}**\n"
-                md_content += f"> {annot['content']}\n\n"
+                md_content += f"- **Highlight Color: {annot['color']}**\n"
+                md_content += f"> {annot['content']} (p. annot['page'])\n\n"
             elif annot['type'] == "Note":
                 md_content += f"- **Note on Page {annot['page']}{color_info}**\n"
                 md_content += f"- {annot['content']}\n\n"
