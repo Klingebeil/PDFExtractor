@@ -5,7 +5,7 @@ import openai
 
 # Set your OpenAI API ky and color of the annotations that are to be summarized here
 openai.api_key = 'YOUR OPEN AI KEY'
-colorforsummaries = "#00000"
+colors_for_summaries = ["#92e1fb", "#69aff0"]  # Add multiple colors as needed
 
 def extract_annotations(pdf_path):
     doc = fitz.open(pdf_path)
@@ -26,6 +26,7 @@ def extract_annotations(pdf_path):
                     rect = fitz.Quad(quads[i:i+4]).rect
                     text += page.get_text("text", clip=rect)
                 text = text.strip().replace('\n', ' ')
+                text = clean_text(text)
                 annotations.append({
                     "page": page_num + 1,
                     "type": "Highlight",
@@ -69,13 +70,13 @@ def format_annotations_to_markdown(annotations, summaries):
     
     for annot in annotations:
         color_info = f" (Color: {annot['color']})" if 'color' in annot else ""
-        if annot['color'] == colorforsummaries:  # Color to be summarized
+        if annot['color'] in colors_for_summaries:  # Check if color is in the list
             if summary_idx < len(summaries):
-                md_content += f"- **Highlight on Page {annot['page']} (Summarized) \{color_info}**\n"
+                md_content += f"- **Highlight on Page {annot['page']} (Summarized){color_info}**\n"
                 md_content += f"{summaries[summary_idx]}\n\n"
                 summary_idx += 1
             else:
-                md_content += f"- **Highlight Color: {annot['color']})**\n"
+                md_content += f"- **Highlight Color: {annot['color']}**\n"
                 md_content += f"> {annot['content']} (p. {annot['page']})\n\n"
         else:
             if annot['type'] == "Highlight":
@@ -86,6 +87,18 @@ def format_annotations_to_markdown(annotations, summaries):
                 md_content += f"- {annot['content']}\n\n"
     
     return md_content
+
+def clean_text(text):
+    # The function strips out encoding patterns such as " p y p " or " gy ". 
+    # If pieces of the annotations should get lost. It is most likely this one that's at fault.
+    
+    # Remove multiple letter-space-letter patterns
+    text = re.sub(r'\b(?!a\b)(?!i\b)([a-z])\b|\b(pp|gy)\b', '', text, flags=re.IGNORECASE)
+    
+    # Remove extra whitespace
+    text = re.sub(r'\s+', ' ', text).strip()
+    
+    return text
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
@@ -99,13 +112,15 @@ if __name__ == "__main__":
         sys.exit(1)
 
     annotations = extract_annotations(pdf_path)
-    highlight_texts = [annot['content'] for annot in annotations if annot['color'] == colorforsummaries]
+    highlight_texts = [annot['content'] for annot in annotations if annot['color'] in colors_for_summaries]
     summaries = summarize_annotations(highlight_texts)
     
     markdown_content = format_annotations_to_markdown(annotations, summaries)
     
-    output_file = os.path.splitext(pdf_path)[0] + "_annotations.md"
+    output_file = os.path.splitext(pdf_path)[0] + " (annotations).md"
     with open(output_file, "w") as f:
         f.write(markdown_content)
+    
+    print(f"Annotations exported to {output_file}")
     
     print(f"Annotations exported to {output_file}")
