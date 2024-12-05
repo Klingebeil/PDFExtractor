@@ -2,6 +2,7 @@ import fitz  # PyMuPDF
 import sys
 import os
 import openai
+import re
 
 # Set your OpenAI API ky and color of the annotations that are to be summarized here
 openai.api_key = 'YOUR OPEN AI KEY'
