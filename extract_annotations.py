@@ -93,8 +93,8 @@ def clean_text(text):
     # The function strips out weird PDF encoding patterns such as " p y p " or " gy ". 
     # If pieces of the annotations should get lost. It is most likely this one that's at fault.
     
-    # Remove multiple letter-space-letter patterns
-    text = re.sub(r'\b(?!a\b)(?!i\b)(?<![\'\'])([a-z])(?![\'\'\.])\b|\b(pp|gy)\b', '', text, flags=re.IGNORECASE)
+    # Remove multiple letter-space-letter patterns (extraction artefacts)
+    text = re.sub(r'\b(?<![\'\’])(?!a\b)(?!i\b)([a-z])(?![.])\b|\b(pp|gy)\b', '', text, flags=re.IGNORECASE)
     
     # Combine hyphenated words
     text = re.sub(r'([a-zA-Z])-\s+([a-zA-Z])', r'\1\2', text)
