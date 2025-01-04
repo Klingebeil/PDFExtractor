@@ -90,12 +90,15 @@ def format_annotations_to_markdown(annotations, summaries):
     return md_content
 
 def clean_text(text):
-    # The function strips out encoding patterns such as " p y p " or " gy ". 
+    # The function strips out weird PDF encoding patterns such as " p y p " or " gy ". 
     # If pieces of the annotations should get lost. It is most likely this one that's at fault.
     
     # Remove multiple letter-space-letter patterns
-    text = re.sub(r'\b(?!a\b)(?!i\b)([a-z])\b|\b(pp|gy)\b', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'\b(?!a\b)(?!i\b)(?<![\'\'])([a-z])(?![\'\'\.])\b|\b(pp|gy)\b', '', text, flags=re.IGNORECASE)
     
+    # Combine hyphenated words
+    text = re.sub(r'([a-zA-Z])-\s+([a-zA-Z])', r'\1\2', text)
+
     # Remove extra whitespace
     text = re.sub(r'\s+', ' ', text).strip()
     
