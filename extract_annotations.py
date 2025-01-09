@@ -54,7 +54,7 @@ def summarize_annotations(texts):
                 messages=[
                     {
                         "role": "user",
-                        "content": f"Summarize the following text in bullet points. Make sure to keep the scientific references!\n\n{text}",
+                        "content": f"Can you explain the following to me in bullet points? Make sure to keep any scientific references!\n\n{text}",
                     }
                 ]
             )
