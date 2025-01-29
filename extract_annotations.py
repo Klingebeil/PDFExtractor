@@ -23,8 +23,12 @@ def extract_annotations(pdf_path):
         page_annotations = 0
 
         while annot:
-            color = annot.colors.get("stroke", (0, 0, 0))  # Default to black if no color info is available
-            color_hex = "#%02x%02x%02x" % (int(color[0] * 255), int(color[1] * 255), int(color[2] * 255))
+            color = annot.colors.get("stroke", (0, 0, 0))
+            # Safely extract RGB components, defaulting to 0 if missing
+            r = color[0] if len(color) > 0 else 0
+            g = color[1] if len(color) > 1 else 0
+            b = color[2] if len(color) > 2 else 0
+            color_hex = "#%02x%02x%02x" % (int(r * 255), int(g * 255), int(b * 255))
 
             if annot.type[0] == 8:  # Highlight
                 text = ""
