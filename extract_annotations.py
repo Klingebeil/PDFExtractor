@@ -124,7 +124,7 @@ def clean_text(text):
     original_length = len(text)
     
     # Remove multiple letter-space-letter extraction patterns
-    text = re.sub(r'\b(?<![\'\'])(?!a\b)(?!i\b)([a-z])(?![.])\b|\b(pp|gy|yp|gg)\b', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'\b(?<![\’\'])(?!a\b)(?!i\b)([a-z])(?![.])\b|\b(pp|gy|yp|gg)\b', '', text, flags=re.IGNORECASE)
 
     # Remove single punctuation marks and brackets (also extraction patterns)
     text = re.sub(r'( ,| ;| \? | \( | \) | ` | \), |,,),', '', text)
