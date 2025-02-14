@@ -4,9 +4,10 @@ PDF Annotation Extractor is a Python script that extracts annotations from a PDF
 
 ## Features
 
-- Extracts highlights and notes from PDF files.
-- Summarizes highlighted text using OpenAI's GPT-4 model.
-- Outputs the annotations and summaries in a Markdown file into the directory of the PDF.
+- Extracts highlights and notes from PDF files
+- Summarizes highlighted text using OpenAI's GPT-4 model
+- Supports custom starting page numbers for PDFs that are part of larger documents
+- Outputs the annotations and summaries in a Markdown file into the directory of the PDF
 
 ## Requirements
 
@@ -15,16 +16,12 @@ PDF Annotation Extractor is a Python script that extracts annotations from a PDF
 - `openai`
 
 ## Installation
-1. Clone this repository or download the script file.
+1. Clone this repository or download the script file
 2. Setup a python environment in the file directory
 3. Install the required Python packages:
 
-```
-pip install pymupdf
-```
-
-```
-pip install openai
+```bash
+pip install pymupdf openai
 ```
 
 ## Usage Python Script
@@ -35,39 +32,53 @@ pip install openai
 openai.api_key = 'your_openai_api_key'
 ```
 
-2. The color of the highlights that should be send for OpenAI for automatic summaries. If unsure which color to choose I recommend running the script once without setting the color first. The output will include the color of each highlight, making it easy to identify the hex code.
+2. The colors of the highlights that should be sent to OpenAI for automatic summaries can be configured in the script:
 
 ```python
-colorforsummaries = "#00000"
+colors_for_summaries = ["#92e1fb", "#69aff0"]  # Add multiple colors as needed
 ```
+
+If unsure which color to choose, run the script once without setting the color first. The output will include the color of each highlight, making it easy to identify the hex codes.
 
 3. Run the script with the path to the PDF file as an argument:
 
-```
+Basic usage (starts counting from page 1):
+```bash
 python extract_annotations.py <path_to_pdf>
 ```
 
-## OpenAI summaries
-
-The script will send highlights that are in a certain color to OpenAI with the following prompt:
-
-```
-Summarize the following text in bullet points:
+Usage with custom starting page number:
+```bash
+python extract_annotations.py <path_to_pdf> --start-page <number>
 ```
 
-### Example
+### Examples
 
-```
+Standard usage, starting from page 1:
+```bash
 python extract_annotations.py example.pdf
 ```
 
-This will generate a Markdown file named `example_annotations.md` with the extracted annotations and summaries.
+Starting from page 42 (useful for PDFs that are part of larger documents):
+```bash
+python extract_annotations.py example.pdf --start-page 42
+```
+
+This will generate a Markdown file named `example (annotations).md` with the extracted annotations and summaries.
+
+## OpenAI summaries
+
+The script will send highlights that match the specified colors to OpenAI with the following prompt:
+
+```
+Please, explain the following to me in bullet points. Make sure to keep scientific references if they are present in the text!
+```
 
 ## Using the Shell Script in MacOS Automator
 
 A shell script (`extract_annotations.sh`) is also provided to automate the environment setup and script execution. It can be run in the MacOS Automator by setting up a new workflow that 1. inputs the provided files and 2. runs the following shell script:
 
-```
+```bash
 for f in "$@"
 do
   /<YOURPATH>/PDFExtractor/run_python_script.sh "$f"
@@ -128,47 +139,42 @@ echo "Script finished." >> "$output_dir/quick_action_log.txt"
 
 2. Make the shell script executable via the terminal:
 
-```
+```bash
 chmod +x extract_annotations.sh
 ```
 
 3. Run the shell script with the path to the PDF file as an argument:
 
-```
-extract_annotations.sh <path_to_pdf>
-```
-
-### Example
-
-```
-extract_annotations.sh example.pdf
+```bash
+./extract_annotations.sh <path_to_pdf>
 ```
 
-This will execute the Python script and generate the Markdown file with annotations and summaries, logging the process in the specified output directory.
+Note: To use the custom start page with the shell script, you'll need to modify the script to pass the `--start-page` argument to the Python script.
 
 ## Script Details
 
-### `extract_annotations(pdf_path)`
+### `extract_annotations(pdf_path, start_page)`
 
 Extracts highlights and notes from the specified PDF file.
 
-- `pdf_path`: Path to the PDF file.
-- Returns a list of annotations with details such as page number, type (highlight or note), content, and color.
+- `pdf_path`: Path to the PDF file
+- `start_page`: Starting page number for the PDF (default: 1)
+- Returns a list of annotations with details such as page number, type (highlight or note), content, and color
 
 ### `summarize_annotations(texts)`
 
 Summarizes the provided texts using OpenAI's GPT-4 model.
 
-- `texts`: List of texts to summarize.
-- Returns a list of summaries.
+- `texts`: List of texts to summarize
+- Returns a list of summaries
 
 ### `format_annotations_to_markdown(annotations, summaries)`
 
 Formats the annotations and summaries into Markdown content.
 
-- `annotations`: List of annotations.
-- `summaries`: List of summaries corresponding to the annotations.
-- Returns a string containing the Markdown content.
+- `annotations`: List of annotations
+- `summaries`: List of summaries corresponding to the annotations
+- Returns a string containing the Markdown content
 
 ## Example Output
 
@@ -177,13 +183,15 @@ An example of the generated Markdown content:
 ```markdown
 # Annotations
 
-- **Highlight on Page 1 (Summarized) (Color: #92e1fb)**
-  - Summary of the highlighted text.
+- **Highlight on Page 42 (Summarized)**
+  - Summary point 1
+  - Summary point 2
+  - Summary point 3
 
-- **Highlight on Page 2 (Color: #ff0000)**
+- **Highlight on Page 43**
   > Original highlighted text.
 
-- **Note on Page 3 (Color: #00ff00)**
+- **Note on Page 44 (Color: #00ff00)**
   - Content of the note.
 ```
 
@@ -191,7 +199,7 @@ An example of the generated Markdown content:
 
 MIT License
 
-Copyright (c) [2024] [Johannes Klingebiel]
+Copyright (c) [2025] [Johannes Klingebiel]
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
