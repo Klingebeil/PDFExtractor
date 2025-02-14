@@ -76,28 +76,35 @@ Please, explain the following to me in bullet points. Make sure to keep scientif
 
 ## Using the Shell Script in MacOS Automator
 
-A shell script (`extract_annotations.sh`) is also provided to automate the environment setup and script execution. It can be run in the MacOS Automator by setting up a new workflow that 1. inputs the provided files and 2. runs the following shell script:
+A shell script (`extract_annotations.sh`) can automate the environment setup and script execution. It can be run in the MacOS Automator by setting up a new workflow that:
+1. Inputs the provided files
+2. Runs the following shell script:
 
 ```bash
+osascript <<EOF > /tmp/page_number.txt
+set pageNumber to text returned of (display dialog "Enter starting page number (leave empty for default: 1):" default answer "1" buttons {"Cancel", "OK"} default button "OK")
+return pageNumber
+EOF
+
+PAGE_NUMBER=$(cat /tmp/page_number.txt)
+
 for f in "$@"
 do
-  /<YOURPATH>/PDFExtractor/run_python_script.sh "$f"
+  /<YOURPATH>/PDFExtractor/run_python_script.sh "$f" "$PAGE_NUMBER"
 done
 ```
 
-Make sure to use the correct shell and to use the input as arguments in the configuration of the shell script.
+Make sure to use the correct shell and configure input arguments properly.
 
 ### Shell Script Details
 
 The `extract_annotations.sh` script does the following:
 
-1. Creates an output directory if it doesn't exist.*
-2. Logs the start of the script and the current working directory for debugging.*
+1. Prompts the user **once** for the starting page number and stores it.
+2. Loops through all selected files, passing the same page number.
 3. Activates a virtual environment.
-4. Runs the Python script with the provided PDF file path as an argument.
-5. Logs the script completion.*
-
-\* these steps can be deleted without impairing the function and are only provided for easier debugging.
+4. Runs the Python script with the provided PDF file path and page number.
+5. Logs execution details for debugging.
 
 ### Usage
 
@@ -107,34 +114,14 @@ The `extract_annotations.sh` script does the following:
 #!/bin/zsh
 # Make sure to edit this line above to your virtual environment
 
-# Path to output directory for debugging (can be deleted if not necessary)
-output_dir=~/PDFExtractor
-
-# Create output directory if it doesn't exist (can be deleted if not necessary)
-mkdir -p "$output_dir"
-
-# Log the start of the script and current working directory (can be deleted if not necessary)
-echo "Starting script..." > "$output_dir/quick_action_log.txt"
-echo "Current directory: $(pwd)" >> "$output_dir/quick_action_log.txt"
-echo "Script path: $0" >> "$output_dir/quick_action_log.txt"
-echo "Arguments: $@" >> "$output_dir/quick_action_log.txt"
-
-# Define paths
 VENV_PATH="<YOURPATH>/PDFExtractor/venv"
 SCRIPT_PATH="<YOURPATH>/PDFExtractor/extract_annotations.py"
 
-# Check paths
-echo "VENV Path: $VENV_PATH" >> "$output_dir/quick_action_log.txt"
-echo "Script Path: $SCRIPT_PATH" >> "$output_dir/quick_action_log.txt"
-
 # Activate the virtual environment
-source "$VENV_PATH/bin/activate" || { echo "Failed to activate virtual environment" >> "$output_dir/quick_action_log.txt"; exit 1; }
+source "$VENV_PATH/bin/activate" || { echo "Failed to activate virtual environment"; exit 1; }
 
 # Run the Python script with the provided argument
-"$VENV_PATH/bin/python3" "$SCRIPT_PATH" "$1" >> "$output_dir/quick_action_log.txt" 2>&1
-
-# Log the script completion (can be deleted if not necessary)
-echo "Script finished." >> "$output_dir/quick_action_log.txt"
+"$VENV_PATH/bin/python3" "$SCRIPT_PATH" "$1" "$2"
 ```
 
 2. Make the shell script executable via the terminal:
@@ -149,32 +136,7 @@ chmod +x extract_annotations.sh
 ./extract_annotations.sh <path_to_pdf>
 ```
 
-Note: To use the custom start page with the shell script, you'll need to modify the script to pass the `--start-page` argument to the Python script.
-
-## Script Details
-
-### `extract_annotations(pdf_path, start_page)`
-
-Extracts highlights and notes from the specified PDF file.
-
-- `pdf_path`: Path to the PDF file
-- `start_page`: Starting page number for the PDF (default: 1)
-- Returns a list of annotations with details such as page number, type (highlight or note), content, and color
-
-### `summarize_annotations(texts)`
-
-Summarizes the provided texts using OpenAI's GPT-4 model.
-
-- `texts`: List of texts to summarize
-- Returns a list of summaries
-
-### `format_annotations_to_markdown(annotations, summaries)`
-
-Formats the annotations and summaries into Markdown content.
-
-- `annotations`: List of annotations
-- `summaries`: List of summaries corresponding to the annotations
-- Returns a string containing the Markdown content
+This ensures that the page number is prompted **only once** and applied to all selected files.
 
 ## Example Output
 
@@ -198,31 +160,6 @@ An example of the generated Markdown content:
 ## License
 
 MIT License
-
-Copyright (c) [2025] [Johannes Klingebiel]
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-## Acknowledgments
-
-- [PyMuPDF](https://github.com/pymupdf/PyMuPDF)
-- [OpenAI](https://www.openai.com)
 
 ---
 
