@@ -15,6 +15,7 @@ def extract_annotations(pdf_path, start_page):
     print(f"[INFO] Using start page number: {start_page}")
     doc = fitz.open(pdf_path)
     annotations = []
+    start_page = start_page -1 # Normalizing start_page to avoid mistakes later in adding the extracted page_num to the start_page
     total_pages = len(doc)
     print(f"[INFO] PDF has {total_pages} pages")
 
