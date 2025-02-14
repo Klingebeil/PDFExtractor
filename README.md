@@ -81,6 +81,9 @@ A shell script (`extract_annotations.sh`) can automate the environment setup and
 2. Runs the following shell script:
 
 ```bash
+#!/bin/zsh
+
+# Ask for the page number once
 osascript <<EOF > /tmp/page_number.txt
 set pageNumber to text returned of (display dialog "Enter starting page number (leave empty for default: 1):" default answer "1" buttons {"Cancel", "OK"} default button "OK")
 return pageNumber
@@ -88,9 +91,10 @@ EOF
 
 PAGE_NUMBER=$(cat /tmp/page_number.txt)
 
+# Run the script for each file with the same page number
 for f in "$@"
 do
-  /<YOURPATH>/PDFExtractor/run_python_script.sh "$f" "$PAGE_NUMBER"
+    <your directory>/run_python_script.sh "$f" "$PAGE_NUMBER"
 done
 ```
 
