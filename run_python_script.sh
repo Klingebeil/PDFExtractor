@@ -35,22 +35,26 @@ SCRIPT_PATH="/Users/johannesklingebieljohannesklingebiel/Library/Scripts/PDFExtr
 echo "VENV Path: $VENV_PATH" >> "$output_dir/quick_action_log.txt"
 echo "Script Path: $SCRIPT_PATH" >> "$output_dir/quick_action_log.txt"
 
-# Get page number from user
-PAGE_NUMBER=$(get_page_number)
-echo "User entered page number: $PAGE_NUMBER" >> "$output_dir/quick_action_log.txt"
-
-# Check if page number was provided and is valid
-if [[ -n "$PAGE_NUMBER" && "$PAGE_NUMBER" =~ ^[0-9]+$ ]]; then
-    PAGE_ARG="--start-page $PAGE_NUMBER"
+# Get page number from user (store it to prevent multiple calls)
+echo "About to get page number..." >> "$output_dir/quick_action_log.txt"
+if [[ -z "$2" ]]; then
+    PAGE_NUMBER=$(get_page_number)
 else
-    PAGE_ARG=""
+    PAGE_NUMBER="$2"
 fi
+echo "Received page number: $PAGE_NUMBER" >> "$output_dir/quick_action_log.txt"
 
 # Activate the virtual environment
 source "$VENV_PATH/bin/activate" || { echo "Failed to activate virtual environment" >> "$output_dir/quick_action_log.txt"; exit 1; }
 
 # Run the Python script with the provided argument
-"$VENV_PATH/bin/python3" "$SCRIPT_PATH" "$1" $PAGE_ARG >> "$output_dir/quick_action_log.txt" 2>&1
+if [[ -n "$PAGE_NUMBER" && "$PAGE_NUMBER" =~ ^[0-9]+$ ]]; then
+    echo "Running Python script with page number $PAGE_NUMBER" >> "$output_dir/quick_action_log.txt"
+    "$VENV_PATH/bin/python3" "$SCRIPT_PATH" "$1" --start-page "$PAGE_NUMBER" >> "$output_dir/quick_action_log.txt" 2>&1
+else
+    echo "Running Python script without page number" >> "$output_dir/quick_action_log.txt"
+    "$VENV_PATH/bin/python3" "$SCRIPT_PATH" "$1" >> "$output_dir/quick_action_log.txt" 2>&1
+fi
 
 # Log the script completion
-echo "Script finished." >> "$output_dir/quick_action_log.txt"
+echo "Script finished: $(date)" >> "$output_dir/quick_action_log.txt"
