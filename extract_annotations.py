@@ -10,8 +10,9 @@ from concurrent.futures import ThreadPoolExecutor
 openai.api_key = 'YOUR OPENAI KEY'
 colors_for_summaries = ["#92e1fb", "#69aff0"]  # Add multiple colors as needed
 
-def extract_annotations(pdf_path):
+def extract_annotations(pdf_path, start_page):
     print(f"\n[INFO] Starting annotation extraction from: {pdf_path}")
+    print(f"[INFO] Using start page number: {start_page}")
     doc = fitz.open(pdf_path)
     annotations = []
     total_pages = len(doc)
@@ -39,7 +40,7 @@ def extract_annotations(pdf_path):
                 text = text.strip().replace('\n', ' ')
                 text = clean_text(text)
                 annotations.append({
-                    "page": page_num + 1,
+                    "page": page_num + start_page,  # Add start_page offset
                     "type": "Highlight",
                     "content": text,
                     "color": color_hex,
@@ -47,7 +48,7 @@ def extract_annotations(pdf_path):
                 page_annotations += 1
             elif annot.type[0] == 12:  # Text note
                 annotations.append({
-                    "page": page_num + 1,
+                    "page": page_num + start_page,  # Add start_page offset
                     "type": "Note",
                     "content": annot.info.get("content", "").strip(),
                     "color": color_hex,
@@ -55,7 +56,7 @@ def extract_annotations(pdf_path):
                 page_annotations += 1
             annot = annot.next
         
-        print(f"[INFO] Page {page_num + 1}: Found {page_annotations} annotations")
+        print(f"[INFO] Page {page_num + start_page}: Found {page_annotations} annotations")
 
     print(f"[INFO] Total annotations extracted: {len(annotations)}")
     return annotations
@@ -68,7 +69,7 @@ async def summarize_single_text(text, index):
             messages=[
                 {
                     "role": "user",
-                    "content": f"Please, explain the following to me in bullet points. Make sure to keep scientific references!\n\n{text}",
+                    "content": f"Please, explain the following to me in bullet points. Make sure to keep scientific references if they are present in the text!\n\n{text}",
                 }
             ]
         )
@@ -102,15 +103,13 @@ def format_annotations_to_markdown(annotations, summaries):
         color_info = f" (Color: {annot['color']})" if 'color' in annot else ""
         if annot['color'] in colors_for_summaries:  # Check if color is in the list
             if summary_idx < len(summaries):
-                md_content += f"- **Highlight on Page {annot['page']} (Summarized){color_info}**\n"
+                md_content += f"- **Highlight on Page {annot['page']} (Summarized)**\n"
                 md_content += f"{summaries[summary_idx]}\n\n"
                 summary_idx += 1
             else:
-                md_content += f"- **Highlight Color: {annot['color']}**\n"
                 md_content += f"> {annot['content']} (p. {annot['page']})\n\n"
         else:
             if annot['type'] == "Highlight":
-                md_content += f"- **Highlight Color: {annot['color']}**\n"
                 md_content += f"> {annot['content']} (p. {annot['page']})\n\n"
             elif annot['type'] == "Note":
                 md_content += f"- **Note on Page {annot['page']}{color_info}**\n"
@@ -124,7 +123,7 @@ def clean_text(text):
     original_length = len(text)
     
     # Remove multiple letter-space-letter extraction patterns
-    text = re.sub(r'\b(?<![\’\'])(?!a\b)(?!i\b)([a-z])(?![.])\b|\b(pp|gy|yp|gg)\b', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'\b(?<![\'\'])(?!a\b)(?!i\b)([a-z])(?![.])\b|\b(pp|gy|yp|gg)\b', '', text, flags=re.IGNORECASE)
 
     # Remove single punctuation marks and brackets (also extraction patterns)
     text = re.sub(r'( ,| ;| \? | \( | \) | ` | \), |,,),', '', text)
@@ -144,16 +143,17 @@ def clean_text(text):
     
     return text
 
-async def main(pdf_path):
+async def main(pdf_path, start_page):
     print("\n[INFO] Starting PDF annotation extraction and summarization")
     print(f"[INFO] Processing file: {pdf_path}")
+    print(f"[INFO] Using start page number: {start_page}")
     
     if not os.path.isfile(pdf_path):
         print(f"[ERROR] File not found: {pdf_path}")
         sys.exit(1)
 
     try:
-        annotations = extract_annotations(pdf_path)
+        annotations = extract_annotations(pdf_path, start_page)
         highlight_texts = [annot['content'] for annot in annotations if annot['color'] in colors_for_summaries]
         print(f"\n[INFO] Found {len(highlight_texts)} texts to summarize")
         
@@ -173,12 +173,13 @@ async def main(pdf_path):
         sys.exit(1)
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("[ERROR] Invalid number of arguments")
-        print("Usage: python extract_annotations.py <path_to_pdf>")
-        sys.exit(1)
-
+    parser = argparse.ArgumentParser(description='Extract and summarize PDF annotations')
+    parser.add_argument('pdf_path', help='Path to the PDF file')
+    parser.add_argument('--start-page', type=int, default=1, 
+                      help='Starting page number (default: 1)')
+    
+    args = parser.parse_args()
+    
     print("[INFO] Starting annotation extraction script")
-    pdf_path = sys.argv[1]
-    asyncio.run(main(pdf_path))
+    asyncio.run(main(args.pdf_path, args.start_page))
     print("[INFO] Script execution completed")
