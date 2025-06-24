@@ -44,28 +44,30 @@ def extract_annotations(pdf_path, start_page):
             if annot.type[0] == 8:  # Highlight
                 highlight_colors.add(color_hex) # Add the color to the set
 
-                # Prioritize content from annot.info['content'] if available (user's "comment" in highlight)
+                # Extract the highlighted text first
+                highlighted_text = ""
+                quads = annot.vertices
+                for i in range(0, len(quads), 4):
+                    rect = fitz.Quad(quads[i:i+4]).rect
+                    highlighted_text += page.get_text("text", clip=rect)
+                highlighted_text = clean_text(highlighted_text.strip().replace('\n', ' '))
+                
                 text_content_from_info = annot.info.get("content", "").strip()
-                annotation_type = "Highlight"
                 
-                if text_content_from_info: # If there is content in the 'Contents' field
-                    text = text_content_from_info
-                    annotation_type = "Highlight Comment" # Differentiate this type
-                else: # Otherwise, extract text from the highlighted area
-                    text = ""
-                    quads = annot.vertices
-                    for i in range(0, len(quads), 4):
-                        rect = fitz.Quad(quads[i:i+4]).rect
-                        text += page.get_text("text", clip=rect)
-                    text = text.strip().replace('\n', ' ')
-                    text = clean_text(text)
-                
-                annotations.append({
-                    "page": page_num + start_page,
-                    "type": annotation_type, # Use the determined type
-                    "content": text,
-                    "color": color_hex,
-                })
+                if text_content_from_info: # If there is content in the 'Contents' field (a comment)
+                    annotations.append({
+                        "page": page_num + start_page,
+                        "type": "Highlight Comment",
+                        "content": f"Highlighted Text: {highlighted_text}\nComment: {text_content_from_info}", # Combine both
+                        "color": color_hex,
+                    })
+                else: # Otherwise, just the highlighted text
+                    annotations.append({
+                        "page": page_num + start_page,
+                        "type": "Highlight",
+                        "content": highlighted_text,
+                        "color": color_hex,
+                    })
                 page_annotations += 1
             elif annot.type[0] == 12:  # Text note (Sticky Note)
                 annotations.append({
@@ -138,13 +140,23 @@ def format_annotations_to_markdown(annotations, summaries):
                 md_content += f"{summaries[summary_idx]}\n\n"
                 summary_idx += 1
             else:
+                # If for some reason a summary wasn't generated but the color is for summary
                 md_content += f"> {annot['content']} (p. {annot['page']})\n\n"
         else:
             if annot['type'] == "Highlight":
                 md_content += f"> {annot['content']} (p. {annot['page']})\n\n"
-            elif annot['type'] == "Highlight Comment": # New type for highlights with embedded comments
-                md_content += f"- **Highlight Comment on Page {annot['page']}**\n"
-                md_content += f"- {annot['content']}\n\n"
+            elif annot['type'] == "Highlight Comment":
+                # Assume the format is "Highlighted Text: ...\nComment: ..."
+                lines = annot['content'].splitlines()
+                highlighted = comment = ""
+                for line in lines:
+                    if line.startswith("Highlighted Text:"):
+                        highlighted = line.replace("Highlighted Text:", "").strip()
+                    elif line.startswith("Comment:"):
+                        comment = line.replace("Comment:", "").strip()
+                
+                md_content += f"- {comment}\n\n"
+                md_content += f"> {highlighted} (p. {annot['page']})\n\n"
             elif annot['type'] == "Note":
                 md_content += f"- **Note on Page {annot['page']}**\n"
                 md_content += f"- {annot['content']}\n\n"
