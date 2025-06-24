@@ -33,7 +33,7 @@ This project provides a Python script to extract annotations from PDF files, sum
         colors_for_summaries = ["#92e1fb", "#69aff0", "#2ea8e5"]
         ```
       * These hex codes represent the colors of highlights that will be sent to OpenAI for summarization.
-      * You can add or remove color codes from this list. If you're unsure what the hex code for a highlight color is, you can run the script once without setting any colors; the output will include the color of each highlight, making it easy to identify them.
+      * You can add or remove color codes from this list. If you're unsure what the hex code for a highlight color is, you can run the script once without setting any colors; the output will log the colors used in a pdf. So, simply dry-run the code and note the colors used.
 4.  **Run the script**:
       * Open your terminal or command prompt.
       * Navigate to the directory where you saved `extract_annotations.py`.
