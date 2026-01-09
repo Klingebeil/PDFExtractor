@@ -11,6 +11,21 @@ OUTPUT_DIR="$SCRIPT_DIR"
 VENV_PATH="$SCRIPT_DIR/venv"
 SCRIPT_PATH="$SCRIPT_DIR/extract_annotations.py"
 
+# Load environment variables from .env file if it exists
+load_env() {
+    local env_file="$SCRIPT_DIR/.env"
+    if [[ -f "$env_file" ]]; then
+        echo "[INFO] Loading environment from .env file"
+        # Export variables from .env file
+        set -a  # automatically export all variables
+        source "$env_file"
+        set +a  # disable automatic export
+    fi
+}
+
+# Load environment early
+load_env
+
 # Initialize variables
 PAGE_NUMBER=""
 LOG_LEVEL="INFO"
@@ -88,18 +103,30 @@ check_environment() {
     
     # Check for OpenAI API key
     if [[ -z "${OPENAI_API_KEY:-}" ]]; then
-        log "ERROR" "OPENAI_API_KEY environment variable not set"
-        echo "[INFO] Please set your OpenAI API key:" >&2
-        echo "  export OPENAI_API_KEY='your-key-here'" >&2
-        return 1
+        log "INFO" "OPENAI_API_KEY not set in environment, checking config.yaml..."
+        
+        # Check if API key is in config.yaml
+        if [[ -f "$SCRIPT_DIR/config.yaml" ]]; then
+            if grep -q "openai_api_key:" "$SCRIPT_DIR/config.yaml" && ! grep -q "#.*openai_api_key:" "$SCRIPT_DIR/config.yaml"; then
+                log "INFO" "API key found in config.yaml"
+            else
+                log "ERROR" "OPENAI_API_KEY not found in environment or config.yaml"
+                echo "[INFO] Please either:" >&2
+                echo "  1. Set environment variable: export OPENAI_API_KEY='your-key-here'" >&2
+                echo "  2. Add to config.yaml: api.openai_api_key: 'your-key-here'" >&2
+                return 1
+            fi
+        else
+            log "ERROR" "No config.yaml found and OPENAI_API_KEY not set"
+            return 1
+        fi
+    else
+        # Basic API key format validation if set in environment
+        if [[ ! "${OPENAI_API_KEY}" =~ ^sk-[a-zA-Z0-9]{20,}$ ]]; then
+            log "WARNING" "API key format seems invalid. Expected format: sk-..."
+        fi
+        log "INFO" "OpenAI API key found and validated"
     fi
-    
-    # Basic API key format validation
-    if [[ ! "${OPENAI_API_KEY}" =~ ^sk-[a-zA-Z0-9]{20,}$ ]]; then
-        log "WARNING" "API key format seems invalid. Expected format: sk-..."
-    fi
-    
-    log "INFO" "OpenAI API key found and validated"
     return 0
 }
 

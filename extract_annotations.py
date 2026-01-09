@@ -24,6 +24,31 @@ colors_for_summaries = []
 api_cache = {}
 api_call_times = []
 
+# Pre-compiled regex patterns for text cleaning (performance optimization)
+WHITESPACE_PATTERN = re.compile(r'[\n\t\r]+')
+# Improved pattern for line-break hyphens (hyphen + whitespace + continuation)
+LINE_BREAK_HYPHEN_PATTERN = re.compile(r'(\w+)-\s+(\w+)')
+# More selective OCR noise removal - only remove 4+ consecutive consonants
+OCR_NOISE_PATTERN = re.compile(r'\b(?:[b-df-hj-np-tv-zB-DF-HJ-NP-TV-Z]\s+){4,}\b')
+# Smart punctuation spacing - only after letters, preserve emails/versions
+SMART_PUNCT_PATTERN = re.compile(r'([.,;?!])([a-zA-Z])')
+ISOLATED_SPECIAL_PATTERN = re.compile(r'\s[^\w\s]\s')
+# More conservative single character removal - only remove obvious noise
+SINGLE_CHAR_NOISE_PATTERN = re.compile(r'\s+[b-df-hj-np-tv-zB-DF-HJ-NP-TV-Z]\s+(?=\s*[b-df-hj-np-tv-zB-DF-HJ-NP-TV-Z]\s+)')
+EXTRA_SPACES_PATTERN = re.compile(r'\s+')
+
+# Patterns to preserve important content
+EMAIL_PATTERN = re.compile(r'\b[\w.-]+@[\w.-]+\.\w+\b')
+VERSION_PATTERN = re.compile(r'\b\d+\.\d+(?:\.\d+)*\b')
+FILE_EXTENSION_PATTERN = re.compile(r'\b\w+\.\w{2,4}\b')
+
+# Common abbreviations to preserve (case insensitive)
+COMMON_ABBREVIATIONS = {
+    'pdf', 'usa', 'ceo', 'dna', 'rna', 'cpu', 'gpu', 'api', 'url', 'http', 'https',
+    'ftp', 'ssh', 'tcp', 'udp', 'ip', 'ui', 'ux', 'ai', 'ml', 'nlp', 'ocr',
+    'eu', 'uk', 'us', 'ca', 'au', 'de', 'fr', 'it', 'es', 'jp', 'cn'
+}
+
 class AnnotationType(Enum):
     HIGHLIGHT = 8
     TEXT_NOTE = 12
@@ -55,15 +80,24 @@ def load_config():
         print(f"[ERROR] Failed to load configuration: {e}")
         sys.exit(1)
     
-    # Setup OpenAI API key from environment
+    # Setup OpenAI API key from environment or config
     api_key = os.getenv('OPENAI_API_KEY')
+    
+    # If not in environment, try to load from config
+    if not api_key and 'api' in config and 'openai_api_key' in config['api']:
+        api_key = config['api']['openai_api_key']
+        print("[INFO] OpenAI API key loaded from config file")
+    elif api_key:
+        print("[INFO] OpenAI API key loaded from environment")
+    
     if not api_key:
-        print("[ERROR] OPENAI_API_KEY environment variable not set")
-        print("[INFO] Please set your OpenAI API key: export OPENAI_API_KEY='your-key-here'")
+        print("[ERROR] OPENAI_API_KEY not found in environment or config file")
+        print("[INFO] Please either:")
+        print("  1. Set environment variable: export OPENAI_API_KEY='your-key-here'")
+        print("  2. Add to config.yaml: api.openai_api_key: 'your-key-here'")
         sys.exit(1)
     
     openai.api_key = api_key
-    print("[INFO] OpenAI API key loaded from environment")
 
 def rate_limit_check():
     """Simple rate limiting for API calls"""
@@ -333,45 +367,150 @@ def format_annotations_to_markdown(annotations, summaries):
     print(f"[INFO] Formatted {formatted_items} annotations with {summary_idx} summaries")
     return md_content 
 
+def _preserve_important_patterns(text):
+    """Extract and temporarily replace important patterns to preserve them"""
+    preservations = {}
+    placeholder_counter = 0
+    
+    # Preserve emails
+    for match in EMAIL_PATTERN.finditer(text):
+        placeholder = f"__PRESERVE_EMAIL_{placeholder_counter}__"
+        preservations[placeholder] = match.group()
+        text = text.replace(match.group(), placeholder)
+        placeholder_counter += 1
+    
+    # Preserve version numbers
+    for match in VERSION_PATTERN.finditer(text):
+        placeholder = f"__PRESERVE_VERSION_{placeholder_counter}__"
+        preservations[placeholder] = match.group()
+        text = text.replace(match.group(), placeholder)
+        placeholder_counter += 1
+    
+    # Preserve file extensions
+    for match in FILE_EXTENSION_PATTERN.finditer(text):
+        placeholder = f"__PRESERVE_FILE_{placeholder_counter}__"
+        preservations[placeholder] = match.group()
+        text = text.replace(match.group(), placeholder)
+        placeholder_counter += 1
+    
+    return text, preservations
+
+def _restore_important_patterns(text, preservations):
+    """Restore the preserved patterns"""
+    for placeholder, original in preservations.items():
+        text = text.replace(placeholder, original)
+    return text
+
+def _is_common_abbreviation(text_part):
+    """Check if a spaced text could be a common abbreviation"""
+    # Remove spaces and check if it's in our abbreviation list
+    cleaned = text_part.replace(' ', '').lower()
+    return cleaned in COMMON_ABBREVIATIONS
+
 def clean_text(text):
+    """Optimized text cleaning with better preservation of legitimate content"""
     if not text:
         return ""
     
+    original_text = text
     original_length = len(text)
     
     try:
-        # 1. Replace multiple newline characters and tabs with a single space
-        text = re.sub(r'[\n\t\r]+', ' ', text)
+        # Step 1: Preserve important patterns (emails, versions, files)
+        text, preservations = _preserve_important_patterns(text)
         
-        # 2. Combine hyphenated words that were split across lines or by spaces
-        text = re.sub(r'(\w+)-\s*(\w+)', r'\1\2', text)
+        # Step 2: Normalize whitespace (tabs, newlines -> single space)
+        text = WHITESPACE_PATTERN.sub(' ', text)
         
-        # 3. Remove OCR artifacts - repeated single characters separated by spaces
-        text = re.sub(r'\b([a-zA-Z])\s+([a-zA-Z])\s+([a-zA-Z])(?:\s+[a-zA-Z])*\b', ' ', text)
+        # Step 3: Smart line-break hyphen handling
+        # Conservative approach: only join obvious line breaks
+        def smart_line_break_hyphen_join(match):
+            word1, word2 = match.groups()
+            
+            # Always keep very short words (x-ray, a-b, etc.)
+            if len(word1) <= 2 or len(word2) <= 2:
+                return f"{word1}-{word2}"
+            
+            # Join if second part starts with lowercase (clear continuation)
+            if word2[0].islower():
+                return word1 + word2
+            
+            # Join only very obvious prefix patterns that rarely occur as compounds
+            obvious_prefixes = {'pre', 'anti', 'auto', 'semi', 'inter', 'intra', 'super', 'sub'}
+            if word1.lower() in obvious_prefixes:
+                return word1 + word2
+                
+            # Join clear suffix patterns (broken word endings)
+            clear_suffixes = {'ing', 'ed', 'tion', 'sion', 'ment', 'ness', 'able', 'ible'}
+            if any(word2.lower().startswith(suffix) for suffix in clear_suffixes):
+                return word1 + word2
+            
+            # Join very long combinations (definitely broken words)
+            if len(word1) + len(word2) > 15:  # Raised threshold
+                return word1 + word2
+            
+            # Default: preserve hyphen (safer for compound words)
+            return f"{word1}-{word2}"
         
-        # 4. Handle punctuation spacing
-        text = re.sub(r'([.,;?!])(\S)', r'\1 \2', text)
+        text = LINE_BREAK_HYPHEN_PATTERN.sub(smart_line_break_hyphen_join, text)
         
-        # 5. Remove isolated special characters
-        text = re.sub(r'\s[^a-zA-Z0-9\s]\s', ' ', text)
+        # Step 4: Smart OCR noise removal with abbreviation preservation
+        # First, preserve known abbreviations before applying OCR removal
+        spaced_abbrevs = {}
+        abbrev_counter = 0
         
-        # 6. Remove isolated single characters (OCR noise)
-        text = re.sub(r'\s+[b-hj-zB-HJ-Z]\s+', ' ', text)
+        # Look for spaced patterns that might be abbreviations
+        spaced_pattern = re.compile(r'\b([A-Z])\s+([A-Z])\s+([A-Z])(?:\s+[A-Z])*\b')
+        for match in spaced_pattern.finditer(text):
+            candidate = match.group(0)
+            if _is_common_abbreviation(candidate):
+                placeholder = f"__ABBREV_{abbrev_counter}__"
+                spaced_abbrevs[placeholder] = candidate.replace(' ', '')  # Remove spaces
+                text = text.replace(candidate, placeholder)
+                abbrev_counter += 1
         
-        # 7. Remove extra whitespace
-        text = re.sub(r'\s+', ' ', text).strip()
+        # Now apply OCR noise removal
+        text = OCR_NOISE_PATTERN.sub(' ', text)
+        
+        # Restore abbreviations
+        for placeholder, abbrev in spaced_abbrevs.items():
+            text = text.replace(placeholder, abbrev)
+        
+        # Step 5: Remove obvious single character noise more conservatively
+        # Only remove when there are multiple consecutive single chars
+        text = SINGLE_CHAR_NOISE_PATTERN.sub(' ', text)
+        
+        # Step 6: Smart punctuation spacing - only where needed
+        text = SMART_PUNCT_PATTERN.sub(r'\1 \2', text)
+        
+        # Step 7: Remove isolated special characters (but not in preserved patterns)
+        text = ISOLATED_SPECIAL_PATTERN.sub(' ', text)
+        
+        # Step 8: Final whitespace cleanup
+        text = EXTRA_SPACES_PATTERN.sub(' ', text).strip()
+        
+        # Step 9: Restore preserved patterns
+        text = _restore_important_patterns(text, preservations)
         
         final_length = len(text)
         
-        # Log warning for significant text reduction
-        if final_length < original_length * 0.5 and original_length > 50:
-            print(f"[WARNING] Significant text reduction in cleaning ({original_length} -> {final_length} chars)")
+        # Enhanced validation and logging
+        reduction_ratio = final_length / original_length if original_length > 0 else 1
+        
+        if reduction_ratio < 0.3 and original_length > 50:
+            print(f"[WARNING] Aggressive text reduction: {original_length} -> {final_length} chars (ratio: {reduction_ratio:.2f})")
+            print(f"[WARNING] Original excerpt: '{original_text[:100]}...'")
+            print(f"[WARNING] Cleaned excerpt: '{text[:100]}...'")
+            # Could optionally return original text or apply gentler cleaning
+        elif original_length > 20:
+            print(f"[DEBUG] Text cleaned: {original_length} -> {final_length} chars (ratio: {reduction_ratio:.2f})")
         
         return text
         
     except Exception as e:
         print(f"[ERROR] Text cleaning failed: {e}")
-        return text  # Return original text if cleaning fails
+        print(f"[ERROR] Problematic text: '{original_text[:100]}...'")
+        return original_text  # Return original text if cleaning fails
 
 def extract_and_format_metadata(pdf_path):
     """
