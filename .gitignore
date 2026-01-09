@@ -163,6 +163,7 @@ dmypy.json
 *annotations.md
 pdfextractor.log
 quick_action_log.txt
+setup_git.sh
 
 # macOS specific
 .DS_Store
