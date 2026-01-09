@@ -266,7 +266,7 @@ For issues, questions, or contributions:
 
 ## 🔄 Changelog
 
-### v1.1.1 (Latest)
+### v1.2.0 (Latest)
 - ✅ **Major text processing optimization**: Pre-compiled regex patterns for 40-60% performance boost
 - ✅ **Smart content preservation**: Emails, version numbers, file extensions, and abbreviations
 - ✅ **Improved hyphen handling**: Fixes PDF line-break hyphens while preserving compound words
