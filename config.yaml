@@ -1,0 +1,18 @@
+api:
+  model: "gpt-4"
+  max_retries: 3
+  retry_delay: 1.0
+  rate_limit_per_minute: 50
+
+colors:
+  summary_colors: ["#92e1fb", "#69aff0", "#2ea8e5"]
+
+prompts:
+  summarization: "Please, explain the following to me in bullet points. Make sure to keep scientific references if they are present in the text!"
+
+processing:
+  max_workers: 4
+  chunk_size: 100
+
+logging:
+  level: "INFO"
