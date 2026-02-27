@@ -123,9 +123,11 @@ def get_text_hash(text: str) -> str:
 def process_single_page(page_data: Tuple[int, fitz.Page, int]) -> Tuple[List[Dict], set]:
     """Process annotations from a single page (for concurrent processing)"""
     page_num, page, start_page = page_data
+    annotations_with_pos = []  # (sort_key, annotation_dict)
     annotations = []
     highlight_colors = set()
-    
+    page_mid_x = page.rect.width / 2
+
     try:
         annot = page.first_annot
         page_annotations = 0
@@ -137,50 +139,56 @@ def process_single_page(page_data: Tuple[int, fitz.Page, int]) -> Tuple[List[Dic
             b = color[2] if len(color) > 2 else 0
             color_hex = "#%02x%02x%02x" % (int(r * 255), int(g * 255), int(b * 255))
 
+            # Sort key: column (0=left, 1=right) then vertical position.
+            # This preserves correct reading order for multi-column layouts.
+            sort_key = (0 if annot.rect.x0 < page_mid_x else 1, annot.rect.y0)
+
             if annot.type[0] == AnnotationType.HIGHLIGHT.value:
                 highlight_colors.add(color_hex)
-                
+
                 highlighted_text = ""
                 quads = annot.vertices
                 for i in range(0, len(quads), 4):
                     rect = fitz.Quad(quads[i:i+4]).rect
-                    highlighted_text += page.get_text("text", clip=rect)
+                    highlighted_text += page.get_text("text", clip=rect, sort=True)
                 highlighted_text = clean_text(highlighted_text.strip().replace('\n', ' '))
-                
+
                 text_content_from_info = annot.info.get("content", "").strip()
-                
+
                 if text_content_from_info:
-                    annotations.append({
+                    annotations_with_pos.append((sort_key, {
                         "page": page_num + start_page,
                         "type": "Highlight Comment",
                         "content": f"Highlighted Text: {highlighted_text}\nComment: {text_content_from_info}",
                         "color": color_hex,
-                    })
+                    }))
                 else:
-                    annotations.append({
+                    annotations_with_pos.append((sort_key, {
                         "page": page_num + start_page,
                         "type": "Highlight",
                         "content": highlighted_text,
                         "color": color_hex,
-                    })
+                    }))
                 page_annotations += 1
             elif annot.type[0] == AnnotationType.TEXT_NOTE.value:
-                annotations.append({
+                annotations_with_pos.append((sort_key, {
                     "page": page_num + start_page,
                     "type": "Note",
                     "content": annot.info.get("content", "").strip(),
                     "color": color_hex,
-                })
+                }))
                 page_annotations += 1
             elif annot.type[0] == AnnotationType.FREETEXT.value:
-                annotations.append({
+                annotations_with_pos.append((sort_key, {
                     "page": page_num + start_page,
                     "type": "FreeText Comment",
                     "content": annot.info.get("content", "").strip(),
                     "color": color_hex,
-                })
+                }))
                 page_annotations += 1
             annot = annot.next
+
+        annotations = [a for _, a in sorted(annotations_with_pos)]
 
         if page_annotations > 0:
             print(f"[INFO] Page {page_num + start_page}: Found {page_annotations} annotations")

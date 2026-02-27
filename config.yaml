@@ -10,7 +10,15 @@ colors:
   summary_colors: ["#92e1fb", "#69aff0", "#2ea8e5"]
 
 prompts:
-  summarization: "Please, explain the following to me in bullet points. Make sure to keep scientific references if they are present in the text!"
+  summarization: "Analyze the following academic text and create a structured summary, explaining the text.
+
+Requirements:
+- Format as clear bullet points
+- Preserve all citations, references, and author names exactly as written
+- Maintain academic terminology and precision
+
+Text to analyze:
+\"\"\""
 
 processing:
   max_workers: 4
